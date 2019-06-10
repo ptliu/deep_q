@@ -195,6 +195,20 @@ class Agent():
                 self.target_net.load_state_dict(self.policy_net.state_dict())
 
         plt.show()
+    
+    def save(target_filename='target.pkl', policy_filename='policy.pkl'):
+        import pickle
+        with open(target_filename, 'wb') as f:
+            torch.save(self.target_net, f)
+        with open(policy_filename, 'wb') as f:
+            torch.save(self.target_net, f)
+    def load(target_filename='target.pkl', policy_filename='policy.pkl'):
+        import pickle
+        with open(target_filename, 'rb') as f:
+            self.target_net = torch.load(f)
+        with open(policy_filename, 'rb') as f:
+            self.policy_net = torch.load(f)
+
 
 
 class DQN(nn.Module):
