@@ -104,7 +104,7 @@ class Agent():
         self.target_net = DQN(width, height, outputs).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = optim.RMSprop(self.policy_net.parameters())
+        self.optimizer = optim.Adam(self.policy_net.parameters()) #was RMSProp
         self.memory = ReplayMemory(10000)
         self.steps = 0
         self.outputs = outputs
@@ -120,13 +120,17 @@ class Agent():
 
 
     def select_action(self,state):
+
         self.steps += 1
- #       if(random.random() < (0.05 + (0.99 - 0.05) * math.exp(-1.0 * self.steps/ 200))):
-  #          return torch.tensor([[random.randrange(self.outputs)]], device=self.device, dtype=torch.long)
-   #     else:
+        if(random.random() < (1*(0.99**self.steps))):
+            return torch.tensor([[random.randrange(self.outputs)]], device=self.device, dtype=torch.long)
+        else:
             #exploit
-    #        with torch.no_grad():
-        return self.policy_net(state).max(1)[1].view(1,1)
+            with torch.no_grad():
+
+                #print(self.policy_net(state))
+                #print(self.policy_net(state).max(1)[1].view(1,1).item())
+                return self.policy_net(state).max(1)[1].view(1,1)
 
     def step(self):
         if len(self.memory) < self.batch_size:
@@ -148,7 +152,7 @@ class Agent():
         next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0].detach()
         expected_state_action_values = (next_state_values * 0.999) + reward_batch
 
-        loss = func.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+        loss = func.mse_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -236,15 +240,15 @@ class DQN(nn.Module):
         torch_init.xavier_normal_(self.conv3.weight)
 
 
-        conv_width = self.conv2d_size_out( self.conv2d_size_out( self.conv2d_size_out(width)))
+        conv_width = self.conv2d_size_out( self.conv2d_size_out(self.conv2d_size_out(width)))
 
         conv_height = self.conv2d_size_out( self.conv2d_size_out( self.conv2d_size_out(height)))
-        self.fc1 = nn.Linear(in_features=conv_width * conv_height * 32, out_features=outputs)#.cuda()
+        self.fc1 = nn.Linear(in_features=conv_width * conv_height * 32, out_features=48)#.cuda()
         self.fc1_normed = nn.BatchNorm1d(outputs)
         torch_init.xavier_normal_(self.fc1.weight)
 
-        #self.fc2 = nn.Linear(in_features=128, out_features=outputs).cuda()
-        #torch_init.xavier_normal_(self.fc2.weight)
+        self.fc2 = nn.Linear(in_features=48, out_features=outputs).cuda()
+        torch_init.xavier_normal_(self.fc2.weight)
 
     def conv2d_size_out(self,size, kernel_size=5, stride=2): 
         return (size - (kernel_size - 1) - 1) // stride + 1
@@ -253,7 +257,7 @@ class DQN(nn.Module):
         
         # Apply first convolution, followed by ReLU non-linearity; 
         # use batch-normalization on its outputs
-        batch = func.relu(self.conv1_normed(self.conv1(batch)))
+        batch = func.relu(self.conv1_normed(self.conv1(batch))) #was relu
         
         # Apply conv2 and conv3 similarly
         batch = func.relu(self.conv2_normed(self.conv2(batch)))
@@ -267,11 +271,11 @@ class DQN(nn.Module):
         
         # Connect the reshaped features of the pooled conv3 to fc1
         # Using activation function of: relu here - is this necessary? 
-        batch = self.fc1(batch)#func.relu(self.fc1_normed(self.fc1(batch)))
+        batch = func.relu(self.fc1(batch))#func.relu(self.fc1_normed(self.fc1(batch)))
         
         # Connect fc1 to fc2 - this layer is slightly different than the rest (why?)
         # A fully connected layer to another fully connected layer 
-        #batch = self.fc2(batch)
+        batch = self.fc2(batch)
 
 
         # Return the class predictions
