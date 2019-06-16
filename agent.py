@@ -161,7 +161,7 @@ class Agent():
         self.optimizer.step() 
 
 
-    def train(self, num_episodes=1000):
+    def train(self, num_episodes=100000):
         for i_episode in range(num_episodes):
             # Initialize the environment and state
             self.env.reset()
@@ -198,15 +198,18 @@ class Agent():
             if i_episode % self.update_freq == 0:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
 
+            if i_episode % 10000 == 0:
+                self.save(target_filename='target_net_{}.pkl'.format(i_episode), policy_filename='policy_net_{}.pkl'.format(i_episode))
+
         plt.show()
     
-    def save(target_filename='target.pkl', policy_filename='policy.pkl'):
+    def save(self, target_filename='target.pkl', policy_filename='policy.pkl'):
         import pickle
         with open(target_filename, 'wb') as f:
             torch.save(self.target_net, f)
         with open(policy_filename, 'wb') as f:
             torch.save(self.target_net, f)
-    def load(target_filename='target.pkl', policy_filename='policy.pkl'):
+    def load(self, target_filename='target.pkl', policy_filename='policy.pkl'):
         import pickle
         with open(target_filename, 'rb') as f:
             self.target_net = torch.load(f)
@@ -231,19 +234,19 @@ class DQN(nn.Module):
         torch_init.xavier_normal_(self.conv1.weight)
 
 
-        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=5, stride=2)#.cuda()
-        self.conv2_normed = nn.BatchNorm2d(32)
-        torch_init.xavier_normal_(self.conv2.weight)
+        #self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=5, stride=2)#.cuda()
+        #self.conv2_normed = nn.BatchNorm2d(32)
+        #torch_init.xavier_normal_(self.conv2.weight)
 
-        self.conv3 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5, stride=2)#.cuda()
-        self.conv3_normed = nn.BatchNorm2d(32)
-        torch_init.xavier_normal_(self.conv3.weight)
+        #self.conv3 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5, stride=2)#.cuda()
+        #self.conv3_normed = nn.BatchNorm2d(32)
+        #torch_init.xavier_normal_(self.conv3.weight)
 
 
-        conv_width = self.conv2d_size_out( self.conv2d_size_out(self.conv2d_size_out(width)))
+        conv_width = self.conv2d_size_out(width)
 
-        conv_height = self.conv2d_size_out( self.conv2d_size_out( self.conv2d_size_out(height)))
-        self.fc1 = nn.Linear(in_features=conv_width * conv_height * 32, out_features=48)#.cuda()
+        conv_height = self.conv2d_size_out(height)
+        self.fc1 = nn.Linear(in_features=conv_width * conv_height *16, out_features=48)#.cuda()
         self.fc1_normed = nn.BatchNorm1d(outputs)
         torch_init.xavier_normal_(self.fc1.weight)
 
@@ -260,8 +263,8 @@ class DQN(nn.Module):
         batch = func.relu(self.conv1_normed(self.conv1(batch))) #was relu
         
         # Apply conv2 and conv3 similarly
-        batch = func.relu(self.conv2_normed(self.conv2(batch)))
-        batch = func.relu(self.conv3_normed(self.conv3(batch)))
+       # batch = func.relu(self.conv2_normed(self.conv2(batch)))
+        #batch = func.relu(self.conv3_normed(self.conv3(batch)))
         
         # Pass the output of conv3 to the pooling layer
         #batch = self.pool(batch)
@@ -271,7 +274,7 @@ class DQN(nn.Module):
         
         # Connect the reshaped features of the pooled conv3 to fc1
         # Using activation function of: relu here - is this necessary? 
-        batch = func.relu(self.fc1(batch))#func.relu(self.fc1_normed(self.fc1(batch)))
+        batch = func.tanh(self.fc1(batch))#func.relu(self.fc1_normed(self.fc1(batch)))
         
         # Connect fc1 to fc2 - this layer is slightly different than the rest (why?)
         # A fully connected layer to another fully connected layer 
